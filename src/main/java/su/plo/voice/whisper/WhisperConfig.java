@@ -1,7 +1,8 @@
-package su.plo.voice.priority;
+package su.plo.voice.whisper;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 import su.plo.config.Config;
 import su.plo.config.ConfigField;
 import su.plo.config.ConfigValidator;
@@ -10,6 +11,7 @@ import java.util.function.Predicate;
 
 @Config
 @Data
+@Accessors(fluent = true)
 public final class WhisperConfig {
 
     @ConfigField(comment = "Supported values: [1-100]")
