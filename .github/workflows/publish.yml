@@ -31,7 +31,7 @@ jobs:
     - name: Publish Client to Modrinth/CurseForge
       uses: Apehum/mc-publish@v1.1
       with:
-        # name: 'PV Addon Whisper'
+        name: 'PV Addon Whisper'
 
         # modrinth-unfeature-mode: 'none'
         # modrinth-id: 1bZhdhsH
