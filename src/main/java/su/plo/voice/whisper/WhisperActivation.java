@@ -7,8 +7,9 @@ import su.plo.lib.api.server.permission.PermissionDefault;
 import su.plo.voice.api.event.EventPriority;
 import su.plo.voice.api.event.EventSubscribe;
 import su.plo.voice.api.server.PlasmoVoiceServer;
-import su.plo.voice.api.server.audio.capture.BaseProximityServerActivation;
+import su.plo.voice.api.server.audio.capture.ProximityServerActivationHelper;
 import su.plo.voice.api.server.audio.capture.ServerActivation;
+import su.plo.voice.api.server.audio.line.ServerSourceLine;
 import su.plo.voice.api.server.audio.source.ServerPlayerSource;
 import su.plo.voice.api.server.event.audio.capture.ServerActivationRegisterEvent;
 import su.plo.voice.api.server.event.audio.capture.ServerActivationUnregisterEvent;
@@ -25,19 +26,20 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-public final class WhisperActivation extends BaseProximityServerActivation {
+public final class WhisperActivation {
+
+    private final PlasmoVoiceServer voiceServer;
 
     private final WhisperAddon addon;
     private final WhisperConfig config;
 
     private final Set<UUID> playerWhisperVisualized = Sets.newCopyOnWriteArraySet();
 
-    private ServerActivation activation;
+    private ProximityServerActivationHelper proximityHelper;
 
     public WhisperActivation(@NotNull PlasmoVoiceServer voiceServer,
                              @NotNull WhisperAddon addon) {
-        super(voiceServer, "whisper", PermissionDefault.TRUE);
-
+        this.voiceServer = voiceServer;
         this.addon = addon;
         this.config = addon.getConfig();
     }
@@ -50,27 +52,31 @@ public final class WhisperActivation extends BaseProximityServerActivation {
         if (!activation.getName().equals(VoiceActivation.PROXIMITY_NAME)) return;
 
         // register whisper
-        ServerActivation.Builder builder = getVoiceServer().getActivationManager().createBuilder(
+        ServerActivation.Builder builder = voiceServer.getActivationManager().createBuilder(
                 addon,
-                getActivationName(),
+                "whisper",
                 "pv.activation.whisper",
                 "plasmovoice:textures/icons/microphone_whisper.png",
                 "pv.activation.whisper",
                 config.activationWeight()
         );
-        this.activation = builder
+        activation = builder
                 .setProximity(true)
                 .setTransitive(false)
                 .setStereoSupported(false)
+                .setPermissionDefault(PermissionDefault.TRUE)
                 .build();
 
-        getVoiceServer().getSourceLineManager().register(
+        ServerSourceLine sourceLine = voiceServer.getSourceLineManager().register(
                 addon,
-                getActivationName(),
+                "whisper",
                 "pv.activation.whisper",
                 "plasmovoice:textures/icons/speaker_whisper.png",
-                config.sourceLineWeight()
+                config.sourceLineWeight(),
+                false
         );
+
+        this.proximityHelper = new ProximityServerActivationHelper(voiceServer, activation, sourceLine);
     }
 
     @EventSubscribe(priority = EventPriority.HIGHEST)
@@ -81,8 +87,9 @@ public final class WhisperActivation extends BaseProximityServerActivation {
         if (!activation.getName().equals(VoiceActivation.PROXIMITY_NAME)) return;
 
         // unregister whisper
-        getVoiceServer().getActivationManager().unregister(getActivationName());
-        getVoiceServer().getSourceLineManager().unregister(getActivationName());
+        voiceServer.getActivationManager().unregister(proximityHelper.getActivation());
+        voiceServer.getSourceLineManager().unregister(proximityHelper.getSourceLine());
+        this.proximityHelper = null;
     }
 
     @EventSubscribe(priority = EventPriority.HIGHEST)
@@ -98,20 +105,20 @@ public final class WhisperActivation extends BaseProximityServerActivation {
 
     @EventSubscribe
     public void onPlayerSpeak(@NotNull PlayerSpeakEvent event) {
-        if (activation == null) return;
+        if (proximityHelper == null) return;
 
         VoiceServerPlayer player = (VoiceServerPlayer) event.getPlayer();
         PlayerAudioPacket packet = event.getPacket();
 
-        if (!activation.checkPermissions(player)) return;
+        if (!proximityHelper.getActivation().checkPermissions(player)) return;
 
-        ServerPlayerSource source = getPlayerSource(player, packet.getActivationId(), packet.isStereo());
+        ServerPlayerSource source = proximityHelper.getPlayerSource(player, packet.getActivationId(), packet.isStereo());
         if (source == null) return;
 
         short distance = calculateWhisperDistance(source.getPlayer());
         if (distance < 0) return;
 
-        sendAudioPacket(player, source, packet, distance);
+        proximityHelper.sendAudioPacket(player, source, packet, distance);
 
         if (!playerWhisperVisualized.contains(player.getInstance().getUUID())) {
             playerWhisperVisualized.add(player.getInstance().getUUID());
@@ -121,24 +128,24 @@ public final class WhisperActivation extends BaseProximityServerActivation {
 
     @EventSubscribe
     public void onPlayerSpeakEnd(@NotNull PlayerSpeakEndEvent event) {
-        if (activation == null) return;
+        if (proximityHelper == null) return;
 
         VoiceServerPlayer player = (VoiceServerPlayer) event.getPlayer();
         PlayerAudioEndPacket packet = event.getPacket();
 
-        if (!activation.checkPermissions(player)) return;
+        if (!proximityHelper.getActivation().checkPermissions(player)) return;
 
-        ServerPlayerSource source = getPlayerSource(player, packet.getActivationId(), true);
+        ServerPlayerSource source = proximityHelper.getPlayerSource(player, packet.getActivationId(), true);
         if (source == null) return;
 
         short distance = calculateWhisperDistance(source.getPlayer());
         if (distance < 0) return;
 
-        sendAudioEndPacket(source, packet, distance);
+        proximityHelper.sendAudioEndPacket(source, packet, distance);
     }
 
     private short calculateWhisperDistance(@NotNull VoiceServerPlayer player) {
-        Optional<ServerActivation> proximityActivation = getVoiceServer().getActivationManager()
+        Optional<ServerActivation> proximityActivation = voiceServer.getActivationManager()
                 .getActivationById(VoiceActivation.PROXIMITY_ID);
         if (!proximityActivation.isPresent()) return -1;
 
