@@ -10,13 +10,11 @@ import su.plo.voice.api.server.PlasmoVoiceServer;
 import su.plo.voice.api.server.audio.capture.ProximityServerActivationHelper;
 import su.plo.voice.api.server.audio.capture.ServerActivation;
 import su.plo.voice.api.server.audio.line.ServerSourceLine;
-import su.plo.voice.api.server.audio.source.ServerPlayerSource;
 import su.plo.voice.api.server.event.audio.capture.ServerActivationRegisterEvent;
 import su.plo.voice.api.server.event.audio.capture.ServerActivationUnregisterEvent;
-import su.plo.voice.api.server.event.audio.source.PlayerSpeakEndEvent;
-import su.plo.voice.api.server.event.audio.source.PlayerSpeakEvent;
 import su.plo.voice.api.server.event.connection.UdpClientDisconnectedEvent;
 import su.plo.voice.api.server.event.player.PlayerActivationDistanceUpdateEvent;
+import su.plo.voice.api.server.player.VoicePlayer;
 import su.plo.voice.api.server.player.VoiceServerPlayer;
 import su.plo.voice.proto.data.audio.capture.VoiceActivation;
 import su.plo.voice.proto.packets.tcp.serverbound.PlayerAudioEndPacket;
@@ -65,18 +63,48 @@ public final class WhisperActivation {
                 .setTransitive(false)
                 .setStereoSupported(false)
                 .setPermissionDefault(PermissionDefault.TRUE)
+                .setRequirements(new ServerActivation.Requirements() {
+
+                    @Override
+                    public boolean checkRequirements(@NotNull VoicePlayer player, @NotNull PlayerAudioPacket packet) {
+                        return calculateWhisperDistance((VoiceServerPlayer) player) > 0;
+                    }
+
+                    @Override
+                    public boolean checkRequirements(@NotNull VoicePlayer player, @NotNull PlayerAudioEndPacket packet) {
+                        return calculateWhisperDistance((VoiceServerPlayer) player) > 0;
+                    }
+                })
                 .build();
 
-        ServerSourceLine sourceLine = voiceServer.getSourceLineManager().register(
+        ServerSourceLine sourceLine = voiceServer.getSourceLineManager().createBuilder(
                 addon,
                 "whisper",
                 "pv.activation.whisper",
                 "plasmovoice:textures/icons/speaker_whisper.png",
-                config.sourceLineWeight(),
-                false
-        );
+                config.sourceLineWeight()
+        ).build();
 
-        this.proximityHelper = new ProximityServerActivationHelper(voiceServer, activation, sourceLine);
+        activation.onPlayerActivationStart(this::onActivationStart);
+
+        this.proximityHelper = new ProximityServerActivationHelper(
+                voiceServer,
+                activation,
+                sourceLine,
+                new ProximityServerActivationHelper.DistanceSupplier() {
+
+                    @Override
+                    public short getDistance(@NotNull VoiceServerPlayer player, @NotNull PlayerAudioPacket packet) {
+                        return calculateWhisperDistance(player);
+                    }
+
+                    @Override
+                    public short getDistance(@NotNull VoiceServerPlayer player, @NotNull PlayerAudioEndPacket packet) {
+                        return calculateWhisperDistance(player);
+                    }
+                }
+        );
+        voiceServer.getEventBus().register(addon, proximityHelper);
     }
 
     @EventSubscribe(priority = EventPriority.HIGHEST)
@@ -89,6 +117,7 @@ public final class WhisperActivation {
         // unregister whisper
         voiceServer.getActivationManager().unregister(proximityHelper.getActivation());
         voiceServer.getSourceLineManager().unregister(proximityHelper.getSourceLine());
+        voiceServer.getEventBus().unregister(addon, proximityHelper);
         this.proximityHelper = null;
     }
 
@@ -103,45 +132,11 @@ public final class WhisperActivation {
         playerWhisperVisualized.remove(event.getConnection().getPlayer().getInstance().getUUID());
     }
 
-    @EventSubscribe
-    public void onPlayerSpeak(@NotNull PlayerSpeakEvent event) {
-        if (proximityHelper == null) return;
-
-        VoiceServerPlayer player = (VoiceServerPlayer) event.getPlayer();
-        PlayerAudioPacket packet = event.getPacket();
-
-        if (!proximityHelper.getActivation().checkPermissions(player)) return;
-
-        ServerPlayerSource source = proximityHelper.getPlayerSource(player, packet.getActivationId(), packet.isStereo());
-        if (source == null) return;
-
-        short distance = calculateWhisperDistance(source.getPlayer());
-        if (distance < 0) return;
-
-        proximityHelper.sendAudioPacket(player, source, packet, distance);
-
+    private void onActivationStart(@NotNull VoicePlayer player) {
         if (!playerWhisperVisualized.contains(player.getInstance().getUUID())) {
             playerWhisperVisualized.add(player.getInstance().getUUID());
-            player.visualizeDistance(calculateWhisperDistance(player), config.visualizeDistanceHexColor());
+            player.visualizeDistance(calculateWhisperDistance((VoiceServerPlayer) player), config.visualizeDistanceHexColor());
         }
-    }
-
-    @EventSubscribe
-    public void onPlayerSpeakEnd(@NotNull PlayerSpeakEndEvent event) {
-        if (proximityHelper == null) return;
-
-        VoiceServerPlayer player = (VoiceServerPlayer) event.getPlayer();
-        PlayerAudioEndPacket packet = event.getPacket();
-
-        if (!proximityHelper.getActivation().checkPermissions(player)) return;
-
-        ServerPlayerSource source = proximityHelper.getPlayerSource(player, packet.getActivationId(), true);
-        if (source == null) return;
-
-        short distance = calculateWhisperDistance(source.getPlayer());
-        if (distance < 0) return;
-
-        proximityHelper.sendAudioEndPacket(source, packet, distance);
     }
 
     private short calculateWhisperDistance(@NotNull VoiceServerPlayer player) {
