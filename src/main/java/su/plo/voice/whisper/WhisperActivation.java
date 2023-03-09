@@ -87,6 +87,10 @@ public final class WhisperActivation {
 
         activation.onPlayerActivationStart(this::onActivationStart);
 
+        if (proximityHelper != null) {
+            voiceServer.getEventBus().unregister(this, proximityHelper);
+        }
+
         this.proximityHelper = new ProximityServerActivationHelper(
                 voiceServer,
                 activation,

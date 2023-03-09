@@ -22,6 +22,8 @@ public final class WhisperAddon {
     @Getter
     private WhisperConfig config;
 
+    private WhisperActivation activation;
+
     @EventSubscribe
     public void onConfigLoaded(@NotNull VoiceServerConfigLoadedEvent event) {
         PlasmoVoiceServer voiceServer = event.getServer();
@@ -42,7 +44,11 @@ public final class WhisperAddon {
             throw new IllegalStateException("Failed to load config", e);
         }
 
-        WhisperActivation activation = new WhisperActivation(voiceServer, this);
+        if (activation != null) {
+            voiceServer.getEventBus().unregister(this, activation);
+        }
+
+        this.activation = new WhisperActivation(voiceServer, this);
         voiceServer.getEventBus().register(this, activation);
     }
 
