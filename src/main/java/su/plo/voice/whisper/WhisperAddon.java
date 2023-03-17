@@ -37,6 +37,8 @@ public final class WhisperAddon {
             toml.save(WhisperConfig.class, config, configFile);
 
             voiceServer.getLanguages().register(
+                    "plasmo-voice-addons",
+                    "server/whisper.toml",
                     this::getLanguageResource,
                     new File(addonFolder, "languages")
             );

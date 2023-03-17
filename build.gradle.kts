@@ -1,5 +1,6 @@
 plugins {
     id("java")
+    id("su.plo.crowdin.plugin") version("1.0.0")
 }
 
 group = "su.plo"
@@ -26,7 +27,18 @@ dependencies {
     annotationProcessor("com.google.code.gson:gson:2.9.0")
 }
 
+plasmoCrowdin {
+    projectId = "plasmo-voice-addons"
+    sourceFileName = "server/whisper.toml"
+    resourceDir = "whisper/languages"
+    createList = true
+}
+
 tasks {
+    processResources {
+        dependsOn(plasmoCrowdinDownload)
+    }
+
     java {
         toolchain.languageVersion.set(JavaLanguageVersion.of(8))
     }
