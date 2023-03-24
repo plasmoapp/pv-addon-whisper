@@ -42,14 +42,9 @@ public final class WhisperActivation {
         this.config = addon.getConfig();
     }
 
-    @EventSubscribe(priority = EventPriority.HIGHEST)
-    public void onProximityRegister(@NotNull ServerActivationRegisterEvent event) {
-        if (event.isCancelled()) return;
+    public void register() {
+        unregister();
 
-        ServerActivation activation = event.getActivation();
-        if (!activation.getName().equals(VoiceActivation.PROXIMITY_NAME)) return;
-
-        // register whisper
         ServerActivation.Builder builder = voiceServer.getActivationManager().createBuilder(
                 addon,
                 "whisper",
@@ -58,7 +53,7 @@ public final class WhisperActivation {
                 "pv.activation.whisper",
                 config.activationWeight()
         );
-        activation = builder
+        ServerActivation activation = builder
                 .setProximity(true)
                 .setTransitive(false)
                 .setStereoSupported(false)
@@ -112,17 +107,23 @@ public final class WhisperActivation {
     }
 
     @EventSubscribe(priority = EventPriority.HIGHEST)
+    public void onProximityRegister(@NotNull ServerActivationRegisterEvent event) {
+        if (event.isCancelled()) return;
+
+        ServerActivation activation = event.getActivation();
+        if (!activation.getName().equals(VoiceActivation.PROXIMITY_NAME)) return;
+
+        register();
+    }
+
+    @EventSubscribe(priority = EventPriority.HIGHEST)
     public void onProximityUnregister(@NotNull ServerActivationUnregisterEvent event) {
         if (event.isCancelled()) return;
 
         ServerActivation activation = event.getActivation();
         if (!activation.getName().equals(VoiceActivation.PROXIMITY_NAME)) return;
 
-        // unregister whisper
-        voiceServer.getActivationManager().unregister(proximityHelper.getActivation());
-        voiceServer.getSourceLineManager().unregister(proximityHelper.getSourceLine());
-        voiceServer.getEventBus().unregister(addon, proximityHelper);
-        this.proximityHelper = null;
+        unregister();
     }
 
     @EventSubscribe(priority = EventPriority.HIGHEST)
@@ -134,6 +135,15 @@ public final class WhisperActivation {
     @EventSubscribe
     public void onClientDisconnect(@NotNull UdpClientDisconnectedEvent event) {
         playerWhisperVisualized.remove(event.getConnection().getPlayer().getInstance().getUUID());
+    }
+
+    private void unregister() {
+        if (proximityHelper == null) return;
+
+        voiceServer.getActivationManager().unregister(proximityHelper.getActivation());
+        voiceServer.getSourceLineManager().unregister(proximityHelper.getSourceLine());
+        voiceServer.getEventBus().unregister(addon, proximityHelper);
+        this.proximityHelper = null;
     }
 
     private void onActivationStart(@NotNull VoicePlayer player) {
