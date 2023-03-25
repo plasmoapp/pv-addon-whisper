@@ -58,14 +58,12 @@ public final class WhisperAddon implements AddonInitializer {
             throw new IllegalStateException("Failed to load config", e);
         }
 
-        if (activation != null) {
-            voiceServer.getEventBus().unregister(this, activation);
+        if (activation == null) {
+            this.activation = new WhisperActivation(voiceServer, this);
+            voiceServer.getEventBus().register(this, activation);
         }
 
-        this.activation = new WhisperActivation(voiceServer, this);
         activation.register();
-
-        voiceServer.getEventBus().register(this, activation);
     }
 
     private InputStream getLanguageResource(@NotNull String resourcePath) throws IOException {
