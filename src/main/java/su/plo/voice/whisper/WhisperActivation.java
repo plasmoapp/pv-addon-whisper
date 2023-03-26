@@ -26,10 +26,11 @@ import java.util.UUID;
 
 public final class WhisperActivation {
 
+    private static final String ACTIVATION_NAME = "whisper";
+
     private final PlasmoVoiceServer voiceServer;
 
     private final WhisperAddon addon;
-    private final WhisperConfig config;
 
     private final Set<UUID> playerWhisperVisualized = Sets.newCopyOnWriteArraySet();
 
@@ -39,26 +40,22 @@ public final class WhisperActivation {
                              @NotNull WhisperAddon addon) {
         this.voiceServer = voiceServer;
         this.addon = addon;
-        this.config = addon.getConfig();
     }
 
-    @EventSubscribe(priority = EventPriority.HIGHEST)
-    public void onProximityRegister(@NotNull ServerActivationRegisterEvent event) {
-        if (event.isCancelled()) return;
+    public void register() {
+        unregister();
 
-        ServerActivation activation = event.getActivation();
-        if (!activation.getName().equals(VoiceActivation.PROXIMITY_NAME)) return;
+        WhisperConfig config = addon.getConfig();
 
-        // register whisper
         ServerActivation.Builder builder = voiceServer.getActivationManager().createBuilder(
                 addon,
-                "whisper",
+                ACTIVATION_NAME,
                 "pv.activation.whisper",
                 "plasmovoice:textures/icons/microphone_whisper.png",
                 "pv.activation.whisper",
                 config.activationWeight()
         );
-        activation = builder
+        ServerActivation activation = builder
                 .setProximity(true)
                 .setTransitive(false)
                 .setStereoSupported(false)
@@ -79,7 +76,7 @@ public final class WhisperActivation {
 
         ServerSourceLine sourceLine = voiceServer.getSourceLineManager().createBuilder(
                 addon,
-                "whisper",
+                ACTIVATION_NAME,
                 "pv.activation.whisper",
                 "plasmovoice:textures/icons/speaker_whisper.png",
                 config.sourceLineWeight()
@@ -87,9 +84,7 @@ public final class WhisperActivation {
 
         activation.onPlayerActivationStart(this::onActivationStart);
 
-        if (proximityHelper != null) {
-            voiceServer.getEventBus().unregister(this, proximityHelper);
-        }
+        if (proximityHelper != null) voiceServer.getEventBus().unregister(addon, proximityHelper);
 
         this.proximityHelper = new ProximityServerActivationHelper(
                 voiceServer,
@@ -112,17 +107,23 @@ public final class WhisperActivation {
     }
 
     @EventSubscribe(priority = EventPriority.HIGHEST)
+    public void onProximityRegister(@NotNull ServerActivationRegisterEvent event) {
+        if (event.isCancelled()) return;
+
+        ServerActivation activation = event.getActivation();
+        if (!activation.getName().equals(VoiceActivation.PROXIMITY_NAME)) return;
+
+        register();
+    }
+
+    @EventSubscribe(priority = EventPriority.HIGHEST)
     public void onProximityUnregister(@NotNull ServerActivationUnregisterEvent event) {
         if (event.isCancelled()) return;
 
         ServerActivation activation = event.getActivation();
         if (!activation.getName().equals(VoiceActivation.PROXIMITY_NAME)) return;
 
-        // unregister whisper
-        voiceServer.getActivationManager().unregister(proximityHelper.getActivation());
-        voiceServer.getSourceLineManager().unregister(proximityHelper.getSourceLine());
-        voiceServer.getEventBus().unregister(addon, proximityHelper);
-        this.proximityHelper = null;
+        unregister();
     }
 
     @EventSubscribe(priority = EventPriority.HIGHEST)
@@ -136,10 +137,23 @@ public final class WhisperActivation {
         playerWhisperVisualized.remove(event.getConnection().getPlayer().getInstance().getUUID());
     }
 
+    private void unregister() {
+        voiceServer.getActivationManager().unregister(ACTIVATION_NAME);
+        voiceServer.getSourceLineManager().unregister(ACTIVATION_NAME);
+
+        if (proximityHelper == null) return;
+
+        voiceServer.getEventBus().unregister(addon, proximityHelper);
+        this.proximityHelper = null;
+    }
+
     private void onActivationStart(@NotNull VoicePlayer player) {
         if (!playerWhisperVisualized.contains(player.getInstance().getUUID())) {
             playerWhisperVisualized.add(player.getInstance().getUUID());
-            player.visualizeDistance(calculateWhisperDistance((VoiceServerPlayer) player), config.visualizeDistanceHexColor());
+            player.visualizeDistance(
+                    calculateWhisperDistance((VoiceServerPlayer) player),
+                    addon.getConfig().visualizeDistanceHexColor()
+            );
         }
     }
 
@@ -155,7 +169,7 @@ public final class WhisperActivation {
         if (proximityDistance < 0) return -1;
 
         return (short) MathLib.clamp(
-                (int) ((proximityDistance / 100F) * config.proximityPercent()),
+                (int) ((proximityDistance / 100F) * addon.getConfig().proximityPercent()),
                 1,
                 proximityActivation.get().getMaxDistance()
         );
