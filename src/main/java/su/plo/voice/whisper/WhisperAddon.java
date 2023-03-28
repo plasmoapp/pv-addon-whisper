@@ -42,7 +42,7 @@ public final class WhisperAddon implements AddonInitializer {
     private void reloadConfig() {
         try {
             File addonFolder = new File(voiceServer.getConfigsFolder(), "pv-addon-whisper");
-            File configFile = new File(addonFolder, "whisper.toml");
+            File configFile = new File(addonFolder, "config.toml");
 
             this.config = toml.load(WhisperConfig.class, configFile, false);
             addonFolder.mkdirs();
