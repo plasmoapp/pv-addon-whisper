@@ -24,4 +24,4 @@ Open Plasmo Voice menu `V` (by default), go to `Activation` tab and configure th
 
 ## Permissions
 
-Permission to use whiseper: `pv.activation.whisper`
+Permission to use whisper: `pv.activation.whisper`
