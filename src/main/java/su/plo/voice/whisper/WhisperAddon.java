@@ -1,12 +1,12 @@
 package su.plo.voice.whisper;
 
-import com.google.inject.Inject;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import su.plo.config.provider.ConfigurationProvider;
 import su.plo.config.provider.toml.TomlConfiguration;
 import su.plo.voice.api.addon.AddonInitializer;
 import su.plo.voice.api.addon.AddonLoaderScope;
+import su.plo.voice.api.addon.InjectPlasmoVoice;
 import su.plo.voice.api.addon.annotation.Addon;
 import su.plo.voice.api.event.EventSubscribe;
 import su.plo.voice.api.server.PlasmoVoiceServer;
@@ -16,12 +16,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
-@Addon(id = "pv-addon-whisper", scope = AddonLoaderScope.SERVER, version = "1.0.0", authors = {"Apehum"})
+@Addon(id = "pv-addon-whisper", scope = AddonLoaderScope.SERVER, version = BuildConstants.VERSION, authors = {"Apehum"})
 public final class WhisperAddon implements AddonInitializer {
 
     private static final ConfigurationProvider toml = ConfigurationProvider.getProvider(TomlConfiguration.class);
 
-    @Inject
+    @InjectPlasmoVoice
     private PlasmoVoiceServer voiceServer;
 
     @Getter
@@ -41,7 +41,7 @@ public final class WhisperAddon implements AddonInitializer {
 
     private void reloadConfig() {
         try {
-            File addonFolder = new File(voiceServer.getConfigsFolder(), "pv-addon-whisper");
+            File addonFolder = new File(voiceServer.getMinecraftServer().getConfigsFolder(), "pv-addon-whisper");
             File configFile = new File(addonFolder, "config.toml");
 
             this.config = toml.load(WhisperConfig.class, configFile, false);

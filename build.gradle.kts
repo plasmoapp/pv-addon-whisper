@@ -1,20 +1,24 @@
 plugins {
     id("java")
-    kotlin("jvm") version("1.6.10")
-    id("su.plo.crowdin.plugin") version("1.0.0")
-    id("su.plo.voice.plugin") version("1.0.0")
+    kotlin("jvm") version(libs.versions.kotlin.get())
+    alias(libs.plugins.crowdin)
+    alias(libs.plugins.pv.entrypoints)
+    alias(libs.plugins.pv.java.templates)
 }
-
-group = "su.plo"
-version = "1.0.0"
 
 dependencies {
-    compileOnly("su.plo.voice.api:server:2.0.0+ALPHA")
-
-    annotationProcessor("org.projectlombok:lombok:1.18.24")
+    compileOnly(libs.pv)
+    annotationProcessor(libs.lombok)
 }
 
-plasmoCrowdin {
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven("https://repo.plasmoverse.com/snapshots")
+    maven("https://repo.plasmoverse.com/releases")
+}
+
+crowdin {
     projectId = "plasmo-voice-addons"
     sourceFileName = "server/whisper.toml"
     resourceDir = "whisper/languages"

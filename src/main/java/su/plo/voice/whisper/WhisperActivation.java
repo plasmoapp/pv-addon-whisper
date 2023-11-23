@@ -2,8 +2,8 @@ package su.plo.voice.whisper;
 
 import com.google.common.collect.Sets;
 import org.jetbrains.annotations.NotNull;
-import su.plo.lib.api.MathLib;
-import su.plo.lib.api.server.permission.PermissionDefault;
+
+import su.plo.slib.api.permission.PermissionDefault;
 import su.plo.voice.api.event.EventPriority;
 import su.plo.voice.api.event.EventSubscribe;
 import su.plo.voice.api.server.PlasmoVoiceServer;
@@ -129,12 +129,12 @@ public final class WhisperActivation {
     @EventSubscribe(priority = EventPriority.HIGHEST)
     public void onProximityDistanceChanged(@NotNull PlayerActivationDistanceUpdateEvent event) {
         if (!event.getActivation().getId().equals(VoiceActivation.PROXIMITY_ID)) return;
-        playerWhisperVisualized.remove(event.getPlayer().getInstance().getUUID());
+        playerWhisperVisualized.remove(event.getPlayer().getInstance().getUuid());
     }
 
     @EventSubscribe
     public void onClientDisconnect(@NotNull UdpClientDisconnectedEvent event) {
-        playerWhisperVisualized.remove(event.getConnection().getPlayer().getInstance().getUUID());
+        playerWhisperVisualized.remove(event.getConnection().getPlayer().getInstance().getUuid());
     }
 
     private void unregister() {
@@ -148,8 +148,8 @@ public final class WhisperActivation {
     }
 
     private void onActivationStart(@NotNull VoicePlayer player) {
-        if (!playerWhisperVisualized.contains(player.getInstance().getUUID())) {
-            playerWhisperVisualized.add(player.getInstance().getUUID());
+        if (!playerWhisperVisualized.contains(player.getInstance().getUuid())) {
+            playerWhisperVisualized.add(player.getInstance().getUuid());
             player.visualizeDistance(
                     calculateWhisperDistance((VoiceServerPlayer) player),
                     addon.getConfig().visualizeDistanceHexColor()
@@ -168,10 +168,12 @@ public final class WhisperActivation {
         }
         if (proximityDistance < 0) return -1;
 
-        return (short) MathLib.clamp(
-                (int) ((proximityDistance / 100F) * addon.getConfig().proximityPercent()),
+        return (short) Math.max(
                 1,
-                proximityActivation.get().getMaxDistance()
+                Math.min(
+                        (int) ((proximityDistance / 100F) * addon.getConfig().proximityPercent()),
+                        proximityActivation.get().getMaxDistance()
+                )
         );
     }
 }
