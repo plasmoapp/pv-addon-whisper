@@ -15,6 +15,7 @@ import su.plo.voice.api.server.event.config.VoiceServerConfigReloadedEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 
 @Addon(id = "pv-addon-whisper", scope = AddonLoaderScope.SERVER, version = BuildConstants.VERSION, authors = {"Apehum"})
 public final class WhisperAddon implements AddonInitializer {
@@ -49,7 +50,7 @@ public final class WhisperAddon implements AddonInitializer {
             toml.save(WhisperConfig.class, config, configFile);
 
             voiceServer.getLanguages().register(
-                    "plasmo-voice-addons",
+                    URI.create("https://github.com/plasmoapp/plasmo-voice-crowdin/archive/refs/heads/addons.zip").toURL(),
                     "server/whisper.toml",
                     this::getLanguageResource,
                     new File(addonFolder, "languages")

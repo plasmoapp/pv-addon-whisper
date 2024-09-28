@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("java")
     kotlin("jvm") version(libs.versions.kotlin.get())
@@ -19,13 +21,21 @@ repositories {
 }
 
 crowdin {
-    projectId = "plasmo-voice-addons"
+    url = URI.create("https://github.com/plasmoapp/plasmo-voice-crowdin/archive/refs/heads/addons.zip").toURL()
     sourceFileName = "server/whisper.toml"
     resourceDir = "whisper/languages"
     createList = true
 }
 
 tasks {
+    jar {
+        enabled = false
+    }
+
+    shadowJar {
+        archiveClassifier.set("")
+    }
+
     java {
         toolchain.languageVersion.set(JavaLanguageVersion.of(8))
     }
